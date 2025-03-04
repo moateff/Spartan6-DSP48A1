@@ -110,12 +110,12 @@ module DSP48A1 #(
     wire [P_DATA_WIDTH - 1:0] MUX_X_out;
     wire [P_DATA_WIDTH - 1:0] MUX_Z_out;
     
+    
     REG_MUX #(.DATA_WIDTH(OPMODE_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(OPMODEREG)) 
         OPMODE_REG_inst (.CLK(CLK), .RST(RSTOPMODE), .CE(CEOPMODE), .D(OPMODE), .Q(OPMODE_r));
-      
-            
-    Bypass_MUX2x1 #(.DATA_WIDTH(B_DATA_WIDTH), .SEL(B_INPUT)) 
-        B0MUX_inst (.x0(B), .x1(BCIN), .y(B0REG_in));
+    
+    assign B0REG_in = (B_INPUT == "DIRECT") ? B : 
+                     ((B_INPUT == "CASCADED") ? BCIN : {B_DATA_WIDTH{1'b0}});
          
     REG_MUX #(.DATA_WIDTH(D_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(DREG)) 
         DREG_inst (.CLK(CLK), .RST(RSTD), .CE(CED), .D(D), .Q(D_r));
@@ -128,7 +128,6 @@ module DSP48A1 #(
     
     REG_MUX #(.DATA_WIDTH(C_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(CREG)) 
         CREG_inst (.CLK(CLK), .RST(RSTC), .CE(CEC), .D(C), .Q(C_r));
-
    
     Adder_Subtractor #(.DATA_WIDTH(B_DATA_WIDTH), .TYPE("PRE")) 
         pre_add_sub_inst (.opmode(OPMODE_r[6]), .x(D_r), .y(B_r), .z(PRE_ADD_SUB_OUT));
@@ -136,50 +135,43 @@ module DSP48A1 #(
     MUX2x1 #(.DATA_WIDTH(B_DATA_WIDTH)) 
         B1MUX_inst (.x0(B_r), .x1(PRE_ADD_SUB_OUT), .sel(OPMODE_r[4]), .y(B1REG_in));
     
-    
     REG_MUX #(.DATA_WIDTH(B_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(B1REG)) 
         B1REG_inst (.CLK(CLK), .RST(RSTB), .CE(CEB), .D(B1REG_in), .Q(BCOUT));
     
     REG_MUX #(.DATA_WIDTH(A_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(A1REG))
         A1REG_inst (.CLK(CLK), .RST(RSTA), .CE(CEA), .D(A_r), .Q(A_rr));
-    
         
     Multiplier #(.DATA_WIDTH(A_DATA_WIDTH)) 
         mult_inst (.x(A_rr), .y(BCOUT), .z(MUL_OUT));
     
-    Bypass_MUX2x1 #(.DATA_WIDTH(1), .SEL(CARRYINSEL)) 
-        CARRY_MUX_inst (.x0(OPMODE_r[5]), .x1(CARRYIN), .y(CARRY_REG_in));
-            
+    assign CARRY_REG_in = (CARRYINSEL == "OPMODE5") ? OPMODE_r[5] : 
+                         ((CARRYINSEL == "CARRYIN") ? CARRYIN : 1'b0);
     
     REG_MUX #(.DATA_WIDTH(M_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(MREG))
-        MREG_inst (.CLK(CLK), .RST(RSTM), .CE(CEM), .D(MUL_OUT), .Q(M));    
+        MREG_inst (.CLK(CLK), .RST(RSTM), .CE(CEM), .D(MUL_OUT), .Q(M_r));    
     
-    REG_MUX #(.DATA_WIDTH(1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYINREG))       
+    BUF #(.DATA_WIDTH(M_DATA_WIDTH)) MBUF(.in(M_r), .out(M));
+        
+    REG_MUX #(.DATA_WIDTH(1'b1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYINREG))       
         CYI_inst (.CLK(CLK), .RST(RSTCARRYIN), .CE(CECARRYIN), .D(CARRY_REG_in), .Q(CIN));         
     
-    
-    MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) MUX_X_inst 
-        (.sel(OPMODE_r[1:0]), .x0({P_DATA_WIDTH{1'b0}}), .x1(M), .x2(P), .x3({D_r[11:0], A_rr, B_rr}), .y(MUX_X_out));
+    MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) 
+        MUX_X_inst (.sel(OPMODE_r[1:0]), .x0({P_DATA_WIDTH{1'b0}}), .x1({12'b0, M_r}), .x2(P), .x3({D_r[11:0], A_rr, B_rr}), .y(MUX_X_out));
         
-    MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) MUX_Z_inst 
-        (.sel(OPMODE_r[3:2]), .x0({P_DATA_WIDTH{1'b0}}), .x1(PCIN), .x2(P), .x3(C_r), .y(MUX_Z_out));
+    MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) 
+        MUX_Z_inst (.sel(OPMODE_r[3:2]), .x0({P_DATA_WIDTH{1'b0}}), .x1(PCIN), .x2(P), .x3(C_r), .y(MUX_Z_out));
     
-    Adder_Subtractor #(.DATA_WIDTH(P_DATA_WIDTH), .TYPE("POST")) post_add_sub_inst 
-        (.opmode(OPMODE_r[7]), .x(MUX_Z_out), .y(MUX_X_out), .cin(CIN), .cout(COUT), .z(POST_ADD_SUB_OUT));
-    
+    Adder_Subtractor #(.DATA_WIDTH(P_DATA_WIDTH), .TYPE("POST")) 
+        post_add_sub_inst (.opmode(OPMODE_r[7]), .x(MUX_Z_out), .y(MUX_X_out), .cin(CIN), .cout(COUT), .z(POST_ADD_SUB_OUT));
     
     REG_MUX #(.DATA_WIDTH(P_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(PREG))       
-        PREG_inst (.CLK(CLK), .RST(RSTP), .CE(1'b1), .D(POST_ADD_SUB_OUT), .Q(P)); 
+        PREG_inst (.CLK(CLK), .RST(RSTP), .CE(CEP), .D(POST_ADD_SUB_OUT), .Q(P)); 
     
-    REG_MUX #(.DATA_WIDTH(1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYOUTREG))       
-        CYO_inst (.CLK(CLK), .RST(RSTCARRYIN), .CE(1'b1), .D(COUT), .Q(CARRYOUT)); 
-    
+    REG_MUX #(.DATA_WIDTH(1'b1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYOUTREG))       
+        CYO_inst (.CLK(CLK), .RST(RSTCARRYIN), .CE(CECARRYIN), .D(COUT), .Q(CARRYOUT)); 
+  
     
     assign PCOUT = P; 
     assign CARRYOUTF = CARRYOUT;
-
-    // assign BCOUT = B_rr;
-    // assign P = P_r; 
-    // assign M = M_r;
                               
 endmodule
