@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module BUF #(
+module BUFFER #(
     parameter DATA_WIDTH = 8 // Width of the data bus
 )(
     input  [DATA_WIDTH-1:0] in,  // Input data
