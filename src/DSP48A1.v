@@ -150,7 +150,7 @@ module DSP48A1 #(
     REG_MUX #(.DATA_WIDTH(M_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(MREG))
         MREG_inst (.CLK(CLK), .RST(RSTM), .CE(CEM), .D(MUL_OUT), .Q(M_r));    
     
-    BUF #(.DATA_WIDTH(M_DATA_WIDTH)) MBUF(.in(M_r), .out(M));
+    BUFFER #(.DATA_WIDTH(M_DATA_WIDTH)) MBUF(.in(M_r), .out(M));
         
     REG_MUX #(.DATA_WIDTH(1'b1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYINREG))       
         CYI_inst (.CLK(CLK), .RST(RSTCARRYIN), .CE(CECARRYIN), .D(CARRY_REG_in), .Q(CIN));         
