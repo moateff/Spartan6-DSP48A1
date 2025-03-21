@@ -265,7 +265,7 @@ module DSP48A1_tb;
             $display("A = %h | B = %h | D = %h | C = %h | CARRYIN = %b | OPMODE = %b | BCIN = %h | PCIN = %h\n", 
                         A_in, B_in, D_in, C_in, CARRYIN_in, OPMODE_in, BCIN_in, PCIN_in);
     
-            // Wait for 4 clock cycles
+            // Wait for 1 clock cycles
             // wait_cycles(1);
     
             // Disable clock signals
@@ -346,12 +346,12 @@ module DSP48A1_tb;
         reg [B_DATA_WIDTH - 1:0] B;
         reg CIN;
         reg COUT;
-        reg [M_DATA_WIDTH - 1:0] mult_result;
         reg [B_DATA_WIDTH - 1:0] pre_add_result;
+        reg [M_DATA_WIDTH - 1:0] mult_result;
         reg [P_DATA_WIDTH - 1:0] post_add_result;
         reg [P_DATA_WIDTH - 1:0] MUX_X_out;
         reg [P_DATA_WIDTH - 1:0] MUX_Z_out;
-        static reg [P_DATA_WIDTH - 1:0] pre_P = 0;
+        static reg [P_DATA_WIDTH - 1:0] P = 0;
         
         // B Selection Logic
         B = (B_INPUT == "DIRECT") ? B_in :
@@ -373,7 +373,7 @@ module DSP48A1_tb;
         case (OPMODE_in[1:0])
             2'b00: MUX_X_out = {P_DATA_WIDTH{1'b0}}; 
             2'b01: MUX_X_out = {12'b0, M_out};        
-            2'b10: MUX_X_out = pre_P;                   
+            2'b10: MUX_X_out = P;                   
             2'b11: MUX_X_out = {D_in[11:0], A_in, BCOUT_out};
         endcase
     
@@ -381,7 +381,7 @@ module DSP48A1_tb;
         case (OPMODE_in[3:2])
             2'b00: MUX_Z_out = {P_DATA_WIDTH{1'b0}}; 
             2'b01: MUX_Z_out = PCIN_in;  
-            2'b10: MUX_Z_out = pre_P;              
+            2'b10: MUX_Z_out = P;              
             2'b11: MUX_Z_out = C_in;        
         endcase
     
@@ -391,8 +391,8 @@ module DSP48A1_tb;
                                   (MUX_Z_out + (MUX_X_out + CIN));      
     
         // Output Assignments
-        pre_P = post_add_result;
-        P_out = post_add_result; 
+        P = post_add_result;
+        P_out = P; 
         CARRYOUT_out = COUT;
     endfunction
 
