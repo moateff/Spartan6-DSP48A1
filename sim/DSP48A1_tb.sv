@@ -22,7 +22,7 @@
 
 module DSP48A1_tb;
     // Parameter definitions
-    integer NUM_TEST_CASES = 100;
+    integer NUM_TEST_CASES = 1000;
     integer pass_count = 0;
     integer error_count = 0; 
     
@@ -46,8 +46,8 @@ module DSP48A1_tb;
     parameter CARRYOUTREG = 1;
     parameter OPMODEREG   = 1;
     
-    parameter CARRYINSEL = "OPMODE5";
-    parameter B_INPUT    = "DIRECT";
+    parameter CARRYINSEL = "OPMODE5"; // "CARRYIN"
+    parameter B_INPUT    = "DIRECT";  // "CASCADED"
     parameter RSTTYPE    = "SYNC";
 
     // Signal definitions
@@ -227,22 +227,46 @@ module DSP48A1_tb;
             PCIN = PCIN_in;
     
             // Enable clock signals
+            // First stage
             CEA = 1;
             CEB = 1;
             CEC = 1;
             CED = 1;
-            CECARRYIN = 1;
             CEOPMODE = 1;
+            wait_cycles(1);
+            CEA = 0;
+            CEB = 0; 
+            CEC = 0;
+            CED = 0;
+            CEOPMODE = 0;
+            
+            // Second stage
+            CEA = 1;
+            CEB = 1;
+            wait_cycles(1); 
+            CEA = 0;
+            CEB = 0;
+            
+            // Third stage
             CEM = 1;
-            wait_cycles(3); 
+            CECARRYIN = 1;
+            wait_cycles(1);
+            CEM = 0;
+            CECARRYIN = 0;
+            
+            // Forth stage
             CEP = 1;
+            CECARRYIN = 1;
+            wait_cycles(1); 
+            CEP = 0;
+            CECARRYIN = 0;
 
             // Display stimulus
             $display("A = %h | B = %h | D = %h | C = %h | CARRYIN = %b | OPMODE = %b | BCIN = %h | PCIN = %h\n", 
                         A_in, B_in, D_in, C_in, CARRYIN_in, OPMODE_in, BCIN_in, PCIN_in);
     
             // Wait for 4 clock cycles
-            wait_cycles(1);
+            // wait_cycles(1);
     
             // Disable clock signals
             CEA = 0;
@@ -450,7 +474,7 @@ module DSP48A1_tb;
             check_outputs(expected_BCOUT, expected_P, expected_M, expected_CARRYOUT);
             
             // Wait for 1 clock cycle
-            wait_cycles(1);
+            // wait_cycles(1);
         end
         
         // Display completion message
