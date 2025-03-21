@@ -40,7 +40,7 @@ module REG_MUX #(
         
     generate 
         if (RSTTYPE == "SYNC") begin
-            always @(posedge CLK) begin
+            always @(negedge CLK) begin
                 if (RST) begin 
                     D_reg <= 0; 
                 end else if (CE) begin

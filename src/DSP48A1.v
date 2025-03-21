@@ -21,6 +21,14 @@
 
 
 module DSP48A1 #(
+    parameter OPMODE_WIDTH = 8,
+    parameter D_DATA_WIDTH = 18,
+    parameter B_DATA_WIDTH = 18,
+    parameter A_DATA_WIDTH = 18,
+    parameter C_DATA_WIDTH = 48,
+    parameter P_DATA_WIDTH = 48,
+    parameter M_DATA_WIDTH = 36,
+    
     parameter A0REG = 0,   // Register A0 or bypass
     parameter A1REG = 1,   // Register A1 or bypass
     parameter B0REG = 0,   // Register B0 or bypass
@@ -38,15 +46,15 @@ module DSP48A1 #(
     parameter B_INPUT    = "DIRECT",     // Select B input source
     parameter RSTTYPE    = "SYNC"        // Reset type
 ) (
-    input wire [17:0] A,      // Input A
-    input wire [17:0] B,      // Input B
-    input wire [17:0] D,      // Input D
-    input wire [47:0] C,      // Input C
+    input wire [A_DATA_WIDTH - 1:0] A,      // Input A
+    input wire [B_DATA_WIDTH - 1:0] B,      // Input B
+    input wire [D_DATA_WIDTH - 1:0] D,      // Input D
+    input wire [C_DATA_WIDTH - 1:0] C,      // Input C
     
-    input wire CLK,           // Clock signal
-    input wire CARRYIN,       // Input Carry-in
-    input wire [7:0] OPMODE,  // Input OPMODE
-    input wire [17:0] BCIN,   // Input BCIN
+    input wire CLK,                          // Clock signal
+    input wire CARRYIN,                      // Input Carry-in
+    input wire [OPMODE_WIDTH - 1:0] OPMODE,  // Input OPMODE
+    input wire [B_DATA_WIDTH - 1:0] BCIN,    // Input BCIN
     
     input wire RSTA,          // Reset for A
     input wire RSTB,          // Reset for B
@@ -66,24 +74,16 @@ module DSP48A1 #(
     input wire CEOPMODE,      // Clock enable for OPMODE
     input wire CECARRYIN,     // Clock enable for Carry-in
     
-    input wire [47:0] PCIN,   // Input PCIN
+    input wire [P_DATA_WIDTH - 1:0] PCIN,   // Input PCIN
     
-    output wire [17:0] BCOUT, // Output BCOUT
-    output wire [47:0] PCOUT, // Output PCOUT
-    output wire [47:0] P,     // Output P
-    output wire [35:0] M,     // Output M
+    output wire [B_DATA_WIDTH - 1:0] BCOUT, // Output BCOUT
+    output wire [P_DATA_WIDTH - 1:0] PCOUT, // Output PCOUT
+    output wire [P_DATA_WIDTH - 1:0] P,     // Output P
+    output wire [M_DATA_WIDTH - 1:0] M,     // Output M
 
     output wire CARRYOUT,     // Output Carry-out
     output wire CARRYOUTF     // Output Carry-out final
 );
-    
-    localparam OPMODE_WIDTH = 8;
-    localparam D_DATA_WIDTH = 18;
-    localparam B_DATA_WIDTH = 18;
-    localparam A_DATA_WIDTH = 18;
-    localparam C_DATA_WIDTH = 48;
-    localparam P_DATA_WIDTH = 48;
-    localparam M_DATA_WIDTH = 36;
     
     wire [OPMODE_WIDTH - 1:0] OPMODE_r;
     wire [D_DATA_WIDTH - 1:0] D_r;
@@ -101,7 +101,6 @@ module DSP48A1 #(
     wire [P_DATA_WIDTH - 1:0] POST_ADD_SUB_OUT;
     
     wire [A_DATA_WIDTH - 1:0] A_rr;
-    wire [B_DATA_WIDTH - 1:0] B_rr;
     
     wire CARRY_REG_in;
     wire CIN;
@@ -130,7 +129,7 @@ module DSP48A1 #(
         CREG_inst (.CLK(CLK), .RST(RSTC), .CE(CEC), .D(C), .Q(C_r));
    
     Adder_Subtractor #(.DATA_WIDTH(B_DATA_WIDTH), .TYPE("PRE")) 
-        pre_add_sub_inst (.opmode(OPMODE_r[6]), .x(D_r), .y(B_r), .z(PRE_ADD_SUB_OUT));
+        pre_add_sub_inst (.opmode(OPMODE_r[6]), .x(D_r), .y(B_r), .cin(), .cout(), .z(PRE_ADD_SUB_OUT));
  
     MUX2x1 #(.DATA_WIDTH(B_DATA_WIDTH)) 
         B1MUX_inst (.x0(B_r), .x1(PRE_ADD_SUB_OUT), .sel(OPMODE_r[4]), .y(B1REG_in));
@@ -150,13 +149,13 @@ module DSP48A1 #(
     REG_MUX #(.DATA_WIDTH(M_DATA_WIDTH), .RSTTYPE(RSTTYPE), .REG_OUT(MREG))
         MREG_inst (.CLK(CLK), .RST(RSTM), .CE(CEM), .D(MUL_OUT), .Q(M_r));    
     
-    BUF #(.DATA_WIDTH(M_DATA_WIDTH)) MBUF(.in(M_r), .out(M));
+    BUFFER #(.DATA_WIDTH(M_DATA_WIDTH)) MBUF(.in(M_r), .out(M));
         
     REG_MUX #(.DATA_WIDTH(1'b1), .RSTTYPE(RSTTYPE), .REG_OUT(CARRYINREG))       
         CYI_inst (.CLK(CLK), .RST(RSTCARRYIN), .CE(CECARRYIN), .D(CARRY_REG_in), .Q(CIN));         
     
     MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) 
-        MUX_X_inst (.sel(OPMODE_r[1:0]), .x0({P_DATA_WIDTH{1'b0}}), .x1({12'b0, M_r}), .x2(P), .x3({D_r[11:0], A_rr, B_rr}), .y(MUX_X_out));
+        MUX_X_inst (.sel(OPMODE_r[1:0]), .x0({P_DATA_WIDTH{1'b0}}), .x1({12'b0, M_r}), .x2(P), .x3({D_r[11:0], A_rr, BCOUT}), .y(MUX_X_out));
         
     MUX4x1 #(.DATA_WIDTH(P_DATA_WIDTH)) 
         MUX_Z_inst (.sel(OPMODE_r[3:2]), .x0({P_DATA_WIDTH{1'b0}}), .x1(PCIN), .x2(P), .x3(C_r), .y(MUX_Z_out));
